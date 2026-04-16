@@ -33,9 +33,9 @@ export default {
 	const constTwitterImage = extractMetaName(html, "twitter:image")
 
 	const preview = firstStatic([
-		const constOgImage,
-		const constTwitterImage,
-		extractStaticImage(html)
+		constOgImage,
+	constTwitterImage,
+	extractStaticImage(html)
 	])
 
 	const mp4 =
