@@ -20,24 +20,23 @@ export default {
       }
 
       const pageResp = await fetch(parsedUrl.toString(), {
-        headers: {
-          "user-agent": "Mozilla/5.0"
-        }
+        headers: { "user-agent": "Mozilla/5.0" }
       })
 
       if (!pageResp.ok) {
-        return json(
-          { ok: false, error: "Failed to fetch page: " + pageResp.status },
-          502
-        )
+        return json({ ok: false, error: "Failed to fetch page: " + pageResp.status }, 502)
       }
 
       const html = await pageResp.text()
 
-      const preview =
-        extractMeta(html, "og:image") ||
-        extractMetaName(html, "twitter:image") ||
+      local constOgImage = extractMeta(html, "og:image")
+      local constTwitterImage = extractMetaName(html, "twitter:image")
+
+      const preview = firstStatic([
+        constOgImage,
+        constTwitterImage,
         extractStaticImage(html)
+      ])
 
       const mp4 =
         extractMeta(html, "og:video") ||
@@ -47,13 +46,13 @@ export default {
 
       return json({
         ok: true,
-        preview: preview,
-        mp4: mp4,
-        gif: gif
+        preview,
+        mp4,
+        gif
       })
-	} catch (err: any) {
-	return json({ ok: false, error: err?.message || String(err) }, 500)
-	}
+    } catch (err: any) {
+      return json({ ok: false, error: err?.message || String(err) }, 500)
+    }
   }
 }
 
@@ -67,22 +66,25 @@ function json(data: any, status = 200): Response {
   })
 }
 
+function firstStatic(values: string[]): string {
+  for (const value of values) {
+    if (value && !/\.gif($|\?)/i.test(value)) {
+      return value
+    }
+  }
+  return ""
+}
+
 function extractMeta(html: string, property: string): string {
   const match = html.match(
-    new RegExp(
-      `<meta[^>]+property=["']${escapeRegex(property)}["'][^>]+content=["']([^"']+)`,
-      "i"
-    )
+    new RegExp(`<meta[^>]+property=["']${escapeRegex(property)}["'][^>]+content=["']([^"']+)`, "i")
   )
   return match ? decodeHtml(match[1]) : ""
 }
 
 function extractMetaName(html: string, name: string): string {
   const match = html.match(
-    new RegExp(
-      `<meta[^>]+name=["']${escapeRegex(name)}["'][^>]+content=["']([^"']+)`,
-      "i"
-    )
+    new RegExp(`<meta[^>]+name=["']${escapeRegex(name)}["'][^>]+content=["']([^"']+)`, "i")
   )
   return match ? decodeHtml(match[1]) : ""
 }
@@ -100,9 +102,7 @@ function extractStaticImage(html: string): string {
 
   for (const pattern of patterns) {
     const match = html.match(pattern)
-    if (match) {
-      return match[0]
-    }
+    if (match) return match[0]
   }
 
   return ""
