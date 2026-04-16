@@ -29,8 +29,8 @@ export default {
 
       const html = await pageResp.text()
 
-      local constOgImage = extractMeta(html, "og:image")
-      local constTwitterImage = extractMetaName(html, "twitter:image")
+      const constOgImage = extractMeta(html, "og:image")
+      const constTwitterImage = extractMetaName(html, "twitter:image")
 
       const preview = firstStatic([
         constOgImage,
@@ -77,14 +77,20 @@ function firstStatic(values: string[]): string {
 
 function extractMeta(html: string, property: string): string {
   const match = html.match(
-    new RegExp(`<meta[^>]+property=["']${escapeRegex(property)}["'][^>]+content=["']([^"']+)`, "i")
+    new RegExp(
+      `<meta[^>]+property=["']${escapeRegex(property)}["'][^>]+content=["']([^"']+)`,
+      "i"
+    )
   )
   return match ? decodeHtml(match[1]) : ""
 }
 
 function extractMetaName(html: string, name: string): string {
   const match = html.match(
-    new RegExp(`<meta[^>]+name=["']${escapeRegex(name)}["'][^>]+content=["']([^"']+)`, "i")
+    new RegExp(
+      `<meta[^>]+name=["']${escapeRegex(name)}["'][^>]+content=["']([^"']+)`,
+      "i"
+    )
   )
   return match ? decodeHtml(match[1]) : ""
 }
