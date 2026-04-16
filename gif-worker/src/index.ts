@@ -51,9 +51,9 @@ export default {
         mp4: mp4,
         gif: gif
       })
-    } catch (err: any) {
-      return json({ ok: false, error: err?.message || String(err) }, 500)
-    }
+	} catch (err: any) {
+	return json({ ok: false, error: err?.message || String(err) }, 500)
+	}
   }
 }
 
