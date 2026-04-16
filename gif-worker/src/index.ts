@@ -16,7 +16,7 @@ export default {
       try {
         parsedUrl = new URL(tenorUrl)
       } catch {
-        return json({ ok: false, error: `Invalid URL: ${tenorUrl}` }, 400)
+        return json({ ok: false, error: "Invalid URL: " + tenorUrl }, 400)
       }
 
       const pageResp = await fetch(parsedUrl.toString(), {
@@ -26,7 +26,7 @@ export default {
       })
 
       if (!pageResp.ok) {
-        return json({ ok: false, error: `Failed to fetch page: ${pageResp.status}` }, 502)
+        return json({ ok: false, error: "Failed to fetch page: " + pageResp.status }, 502)
       }
 
       const html = await pageResp.text()
@@ -45,16 +45,16 @@ export default {
       return json({
         ok: true,
         preview: staticPreview,
-        mp4,
-        gif
+        mp4: mp4,
+        gif: gif
       })
     } catch (err: any) {
-      return json({ ok: false, error: err?.message || orString(err) }, 500)
+      return json({ ok: false, error: err?.message || String(err) }, 500)
     }
   }
 }
 
-function json(data: any, status = 200) {
+function json(data: any, status = 200): Response {
   return new Response(JSON.stringify(data), {
     status,
     headers: {
@@ -64,26 +64,26 @@ function json(data: any, status = 200) {
   })
 }
 
-function extractMeta(html: string, property: string) {
+function extractMeta(html: string, property: string): string {
   const match = html.match(
     new RegExp(`<meta[^>]+property=["']${escapeRegex(property)}["'][^>]+content=["']([^"']+)`, "i")
   )
   return match ? decodeHtml(match[1]) : ""
 }
 
-function extractMetaName(html: string, name: string) {
+function extractMetaName(html: string, name: string): string {
   const match = html.match(
     new RegExp(`<meta[^>]+name=["']${escapeRegex(name)}["'][^>]+content=["']([^"']+)`, "i")
   )
   return match ? decodeHtml(match[1]) : ""
 }
 
-function extractGif(html: string) {
+function extractGif(html: string): string {
   const match = html.match(/https:\/\/media\d*\.tenor\.com\/[^"' ]+\.gif/i)
   return match ? match[0] : ""
 }
 
-function extractStaticImage(html: string) {
+function extractStaticImage(html: string): string {
   const patterns = [
     /https:\/\/media\d*\.tenor\.com\/[^"' ]+\.(png|jpe?g|webp)/i,
     /https:\/\/c\.tenor\.com\/[^"' ]+\.(png|jpe?g|webp)/i
@@ -99,7 +99,7 @@ function extractStaticImage(html: string) {
   return ""
 }
 
-function decodeHtml(str: string) {
+function decodeHtml(str: string): string {
   return str
     .replace(/&amp;/g, "&")
     .replace(/&quot;/g, '"')
@@ -108,10 +108,6 @@ function decodeHtml(str: string) {
     .replace(/&gt;/g, ">")
 }
 
-function escapeRegex(str: string) {
+function escapeRegex(str: string): string {
   return str.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")
-}
-
-function orString(value: any) {
-  return typeof value === "string" ? value : String(value)
 }
