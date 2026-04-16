@@ -26,12 +26,15 @@ export default {
       })
 
       if (!pageResp.ok) {
-        return json({ ok: false, error: "Failed to fetch page: " + pageResp.status }, 502)
+        return json(
+          { ok: false, error: "Failed to fetch page: " + pageResp.status },
+          502
+        )
       }
 
       const html = await pageResp.text()
 
-      const staticPreview =
+      const preview =
         extractMeta(html, "og:image") ||
         extractMetaName(html, "twitter:image") ||
         extractStaticImage(html)
@@ -44,7 +47,7 @@ export default {
 
       return json({
         ok: true,
-        preview: staticPreview,
+        preview: preview,
         mp4: mp4,
         gif: gif
       })
@@ -66,14 +69,20 @@ function json(data: any, status = 200): Response {
 
 function extractMeta(html: string, property: string): string {
   const match = html.match(
-    new RegExp(`<meta[^>]+property=["']${escapeRegex(property)}["'][^>]+content=["']([^"']+)`, "i")
+    new RegExp(
+      `<meta[^>]+property=["']${escapeRegex(property)}["'][^>]+content=["']([^"']+)`,
+      "i"
+    )
   )
   return match ? decodeHtml(match[1]) : ""
 }
 
 function extractMetaName(html: string, name: string): string {
   const match = html.match(
-    new RegExp(`<meta[^>]+name=["']${escapeRegex(name)}["'][^>]+content=["']([^"']+)`, "i")
+    new RegExp(
+      `<meta[^>]+name=["']${escapeRegex(name)}["'][^>]+content=["']([^"']+)`,
+      "i"
+    )
   )
   return match ? decodeHtml(match[1]) : ""
 }
