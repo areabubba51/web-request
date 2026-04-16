@@ -27,22 +27,22 @@ export default {
         return json({ ok: false, error: "Failed to fetch page: " + pageResp.status }, 502)
       }
 
-      const html = await pageResp.text()
+	const html = await pageResp.text()
 
-      const constOgImage = extractMeta(html, "og:image")
-      const constTwitterImage = extractMetaName(html, "twitter:image")
+	const constOgImage = extractMeta(html, "og:image")
+	const constTwitterImage = extractMetaName(html, "twitter:image")
 
-      const preview = firstStatic([
-        constOgImage,
-        constTwitterImage,
-        extractStaticImage(html)
-      ])
+	const preview = firstStatic([
+		const constOgImage,
+		const constTwitterImage,
+		extractStaticImage(html)
+	])
 
-      const mp4 =
-        extractMeta(html, "og:video") ||
-        extractMeta(html, "og:video:url")
+	const mp4 =
+		extractMeta(html, "og:video") ||
+		extractMeta(html, "og:video:url")
 
-      const gif = extractGif(html)
+	const gif = extractGif(html)
 
       return json({
         ok: true,
