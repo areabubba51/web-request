@@ -49,7 +49,7 @@ export default {
         gif
       })
     } catch (err: any) {
-      return json({ ok: false, error: err?.message orString(err) }, 500)
+      return json({ ok: false, error: err?.message || orString(err) }, 500)
     }
   }
 }
