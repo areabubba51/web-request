@@ -10,17 +10,18 @@ function json(data: unknown, status = 200) {
   })
 }
 
-function normalizeDiscordUrl(url: string) {
+function normalizeUrl(url: string) {
+  url = url.trim()
+
+  // strip spaces
+  url = url.replace(/\s+/g, "")
+
+  // Discord cleanup if someone pastes one anyway
   if (/^https:\/\/media\.discordapp\.net\//i.test(url)) {
     url = url.replace(/^https:\/\/media\.discordapp\.net\//i, "https://cdn.discordapp.com/")
   }
 
-  url = url.replace(/\?.*$/, "")
   return url
-}
-
-function isAllowedImageUrl(url: string) {
-  return /^https?:\/\/.+\.(png|jpe?g|webp|gif)$/i.test(url)
 }
 
 export default {
@@ -32,17 +33,10 @@ export default {
       return json({ ok: false, error: "Missing url" }, 400)
     }
 
-    imageUrl = normalizeDiscordUrl(imageUrl)
+    imageUrl = normalizeUrl(imageUrl)
 
-    if (!isAllowedImageUrl(imageUrl)) {
-      return json(
-        {
-          ok: false,
-          error: "Only direct image URLs are supported",
-          finalUrl: imageUrl,
-        },
-        400
-      )
+    if (!/^https?:\/\//i.test(imageUrl)) {
+      return json({ ok: false, error: "URL must start with http or https" }, 400)
     }
 
     try {
@@ -52,6 +46,9 @@ export default {
         headers: {
           "user-agent": "Mozilla/5.0",
           "accept": "image/avif,image/webp,image/apng,image/*,*/*;q=0.8",
+          "accept-language": "en-US,en;q=0.9",
+          "cache-control": "no-cache",
+          "pragma": "no-cache",
         },
       })
 
@@ -61,7 +58,7 @@ export default {
           {
             ok: false,
             error: `Fetch failed: ${upstream.status}`,
-            finalUrl: imageUrl,
+            finalUrl: upstream.url || imageUrl,
             body: text.slice(0, 300),
           },
           502
@@ -75,8 +72,8 @@ export default {
         return json(
           {
             ok: false,
-            error: "Not an image response",
-            finalUrl: imageUrl,
+            error: "Response was not an image",
+            finalUrl: upstream.url || imageUrl,
             contentType,
             body: text.slice(0, 300),
           },
