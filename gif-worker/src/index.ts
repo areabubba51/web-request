@@ -20,11 +20,11 @@ export default {
     const imageUrl = reqUrl.searchParams.get("url")
 
     if (!imageUrl) {
-      return json({ ok = false, error = "Missing url" }, 400)
+      return json({ ok: false, error: "Missing url" }, 400)
     }
 
     if (!isDirectImageUrl(imageUrl)) {
-      return json({ ok = false, error = "Only direct image URLs are supported" }, 400)
+      return json({ ok: false, error: "Only direct image URLs are supported" }, 400)
     }
 
     try {
@@ -37,12 +37,12 @@ export default {
       })
 
       if (!upstream.ok) {
-        return json({ ok = false, error = `Fetch failed: ${upstream.status}` }, 502)
+        return json({ ok: false, error: `Fetch failed: ${upstream.status}` }, 502)
       }
 
       const contentType = upstream.headers.get("content-type") || ""
       if (!contentType.startsWith("image/")) {
-        return json({ ok = false, error = "Not an image response" }, 400)
+        return json({ ok: false, error: "Not an image response" }, 400)
       }
 
       const bytes = await upstream.arrayBuffer()
