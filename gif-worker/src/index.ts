@@ -1,128 +1,68 @@
-export default {
-  async fetch(request: Request): Promise<Response> {
-    try {
-      const url = new URL(request.url)
+export interface Env {}
 
-      if (url.pathname !== "/resolve") {
-        return new Response("Use /resolve?url=TENOR_LINK", { status: 200 })
-      }
-
-      const tenorUrl = url.searchParams.get("url")
-      if (!tenorUrl) {
-        return json({ ok: false, error: "Missing url" }, 400)
-      }
-
-      let parsedUrl: URL
-      try {
-        parsedUrl = new URL(tenorUrl)
-      } catch {
-        return json({ ok: false, error: "Invalid URL: " + tenorUrl }, 400)
-      }
-
-      const pageResp = await fetch(parsedUrl.toString(), {
-        headers: { "user-agent": "Mozilla/5.0" }
-      })
-
-      if (!pageResp.ok) {
-        return json({ ok: false, error: "Failed to fetch page: " + pageResp.status }, 502)
-      }
-
-	const html = await pageResp.text()
-
-	const constOgImage = extractMeta(html, "og:image")
-	const constTwitterImage = extractMetaName(html, "twitter:image")
-
-	const preview = firstStatic([
-		constOgImage,
-	constTwitterImage,
-	extractStaticImage(html)
-	])
-
-	const mp4 =
-		extractMeta(html, "og:video") ||
-		extractMeta(html, "og:video:url")
-
-	const gif = extractGif(html)
-
-      return json({
-        ok: true,
-        preview,
-        mp4,
-        gif
-      })
-    } catch (err: any) {
-      return json({ ok: false, error: err?.message || String(err) }, 500)
-    }
-  }
-}
-
-function json(data: any, status = 200): Response {
+function json(data: unknown, status = 200) {
   return new Response(JSON.stringify(data), {
     status,
     headers: {
       "content-type": "application/json",
-      "access-control-allow-origin": "*"
-    }
+      "access-control-allow-origin": "*",
+    },
   })
 }
 
-function firstStatic(values: string[]): string {
-  for (const value of values) {
-    if (value && /\.(png|jpe?g)($|\?)/i.test(value)) {
-      return value
+function isDirectImageUrl(url: string) {
+  return /^https?:\/\/.+\.(png|jpe?g|webp|gif)(\?.*)?$/i.test(url)
+}
+
+export default {
+  async fetch(request: Request): Promise<Response> {
+    const reqUrl = new URL(request.url)
+    const imageUrl = reqUrl.searchParams.get("url")
+
+    if (!imageUrl) {
+      return json({ ok = false, error = "Missing url" }, 400)
     }
-  }
-  return ""
-}
 
-function extractMeta(html: string, property: string): string {
-  const match = html.match(
-    new RegExp(
-      `<meta[^>]+property=["']${escapeRegex(property)}["'][^>]+content=["']([^"']+)`,
-      "i"
-    )
-  )
-  return match ? decodeHtml(match[1]) : ""
-}
+    if (!isDirectImageUrl(imageUrl)) {
+      return json({ ok = false, error = "Only direct image URLs are supported" }, 400)
+    }
 
-function extractMetaName(html: string, name: string): string {
-  const match = html.match(
-    new RegExp(
-      `<meta[^>]+name=["']${escapeRegex(name)}["'][^>]+content=["']([^"']+)`,
-      "i"
-    )
-  )
-  return match ? decodeHtml(match[1]) : ""
-}
+    try {
+      const upstream = await fetch(imageUrl, {
+        headers: {
+          "user-agent": "Mozilla/5.0",
+          "accept": "image/avif,image/webp,image/apng,image/*,*/*;q=0.8",
+          "referer": imageUrl,
+        },
+      })
 
-function extractGif(html: string): string {
-  const match = html.match(/https:\/\/media\d*\.tenor\.com\/[^"' ]+\.gif/i)
-  return match ? match[0] : ""
-}
+      if (!upstream.ok) {
+        return json({ ok = false, error = `Fetch failed: ${upstream.status}` }, 502)
+      }
 
-function extractStaticImage(html: string): string {
-  const patterns = [
-    /https:\/\/media\d*\.tenor\.com\/[^"' ]+\.(png|jpe?g|webp)/i,
-    /https:\/\/c\.tenor\.com\/[^"' ]+\.(png|jpe?g|webp)/i
-  ]
+      const contentType = upstream.headers.get("content-type") || ""
+      if (!contentType.startsWith("image/")) {
+        return json({ ok = false, error = "Not an image response" }, 400)
+      }
 
-  for (const pattern of patterns) {
-    const match = html.match(pattern)
-    if (match) return match[0]
-  }
+      const bytes = await upstream.arrayBuffer()
 
-  return ""
-}
-
-function decodeHtml(str: string): string {
-  return str
-    .replace(/&amp;/g, "&")
-    .replace(/&quot;/g, '"')
-    .replace(/&#39;/g, "'")
-    .replace(/&lt;/g, "<")
-    .replace(/&gt;/g, ">")
-}
-
-function escapeRegex(str: string): string {
-  return str.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")
+      return new Response(bytes, {
+        status: 200,
+        headers: {
+          "content-type": contentType,
+          "cache-control": "public, max-age=3600",
+          "access-control-allow-origin": "*",
+        },
+      })
+    } catch (err) {
+      return json(
+        {
+          ok: false,
+          error: err instanceof Error ? err.message : "Unknown worker error",
+        },
+        500
+      )
+    }
+  },
 }
