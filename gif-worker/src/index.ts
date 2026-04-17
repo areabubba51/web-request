@@ -11,17 +11,7 @@ function json(data: unknown, status = 200) {
 }
 
 function normalizeUrl(url: string) {
-  url = url.trim()
-
-  // strip spaces
-  url = url.replace(/\s+/g, "")
-
-  // Discord cleanup if someone pastes one anyway
-  if (/^https:\/\/media\.discordapp\.net\//i.test(url)) {
-    url = url.replace(/^https:\/\/media\.discordapp\.net\//i, "https://cdn.discordapp.com/")
-  }
-
-  return url
+  return url.trim().replace(/\s+/g, "")
 }
 
 export default {
@@ -41,14 +31,18 @@ export default {
 
     try {
       const upstream = await fetch(imageUrl, {
-        method: "GET",
-        redirect: "follow",
+        cf: {
+          image: {
+            width: 256,
+            height: 256,
+            fit: "scale-down",
+            format: "png",
+            anim: false,
+          },
+        },
         headers: {
           "user-agent": "Mozilla/5.0",
           "accept": "image/avif,image/webp,image/apng,image/*,*/*;q=0.8",
-          "accept-language": "en-US,en;q=0.9",
-          "cache-control": "no-cache",
-          "pragma": "no-cache",
         },
       })
 
