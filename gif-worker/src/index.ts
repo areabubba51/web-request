@@ -53,25 +53,7 @@ export default {
       const inputBytes = new Uint8Array(await imageRes.arrayBuffer());
       let photonImage = PhotonImage.new_from_byteslice(inputBytes);
 
-      if (resizeTo) {
-        const width = photonImage.get_width();
-        const height = photonImage.get_height();
 
-        let newWidth = width;
-        let newHeight = height;
-
-        if (width > height) {
-          newWidth = resizeTo;
-          newHeight = Math.max(1, Math.round((height / width) * resizeTo));
-        } else {
-          newHeight = resizeTo;
-          newWidth = Math.max(1, Math.round((width / height) * resizeTo));
-        }
-
-        const resized = resize(photonImage, newWidth, newHeight, SamplingFilter.CatmullRom);
-        photonImage.free();
-        photonImage = resized;
-      }
 
       const width = photonImage.get_width();
       const height = photonImage.get_height();
