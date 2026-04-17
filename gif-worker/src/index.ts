@@ -68,7 +68,7 @@ export default {
           newWidth = Math.max(1, Math.round((width / height) * resizeTo));
         }
 
-        const resized = resize(photonImage, newWidth, newHeight, SamplingFilter.Lanczos3);
+        const resized = resize(photonImage, newWidth, newHeight, SamplingFilter.CatmullRom);
         photonImage.free();
         photonImage = resized;
       }
