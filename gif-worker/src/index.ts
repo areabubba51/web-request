@@ -1,12 +1,11 @@
 export interface Env {}
 
 function json(data: unknown, status = 200) {
-  return new Response(await upstream.arrayBuffer(), {
-    status: 200,
+  return new Response(JSON.stringify(data), {
+    status,
     headers: {
-      "content-type": "image/png",
+      "content-type": "application/json",
       "access-control-allow-origin": "*",
-      "cache-control": "public, max-age=3600",
     },
   })
 }
@@ -76,10 +75,12 @@ export default {
         )
       }
 
-      return new Response(upstream.body, {
+      const bytes = await upstream.arrayBuffer()
+
+      return new Response(bytes, {
         status: 200,
         headers: {
-          "content-type": contentType,
+          "content-type": "image/png",
           "cache-control": "public, max-age=3600",
           "access-control-allow-origin": "*",
         },
