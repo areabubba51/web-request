@@ -68,7 +68,7 @@ function json(data: any, status = 200): Response {
 
 function firstStatic(values: string[]): string {
   for (const value of values) {
-    if (value && !/\.gif($|\?)/i.test(value)) {
+    if (value && /\.(png|jpe?g)($|\?)/i.test(value)) {
       return value
     }
   }
