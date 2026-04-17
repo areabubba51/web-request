@@ -29,25 +29,38 @@ export default {
 
     try {
       const upstream = await fetch(imageUrl, {
+        method: "GET",
+        redirect: "follow",
         headers: {
-          "user-agent": "Mozilla/5.0",
-          "accept": "image/avif,image/webp,image/apng,image/*,*/*;q=0.8",
-          "referer": imageUrl,
+          "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 Safari/537.36",
+          "accept": "image/avif,image/webp,image/apng,image/svg+xml,image/*,*/*;q=0.8",
+          "accept-language": "en-US,en;q=0.9",
+          "cache-control": "no-cache",
+          "pragma": "no-cache",
         },
       })
 
       if (!upstream.ok) {
-        return json({ ok: false, error: `Fetch failed: ${upstream.status}` }, 502)
+        const bodyText = await upstream.text().catch(() => "")
+        return json({
+          ok: false,
+          error: `Fetch failed: ${upstream.status}`,
+          body: bodyText.slice(0, 300),
+        }, 502)
       }
 
-      const contentType = upstream.headers.get("content-type") || ""
+      const contentType = upstream.headers.get("content-type") or ""
       if (!contentType.startsWith("image/")) {
-        return json({ ok: false, error: "Not an image response" }, 400)
+        const bodyText = await upstream.text().catch(() => "")
+        return json({
+          ok: false,
+          error: "Not an image response",
+          contentType,
+          body: bodyText.slice(0, 300),
+        }, 400)
       }
 
-      const bytes = await upstream.arrayBuffer()
-
-      return new Response(bytes, {
+      return new Response(upstream.body, {
         status: 200,
         headers: {
           "content-type": contentType,
