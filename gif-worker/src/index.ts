@@ -1,135 +1,115 @@
+import { PhotonImage, resize, SamplingFilter } from "@cf-wasm/photon/workerd";
+
 export interface Env {}
 
 function json(data: unknown, status = 200) {
   return new Response(JSON.stringify(data), {
     status,
     headers: {
-      "content-type": "application/json",
-      "access-control-allow-origin": "*",
-      "cache-control": "no-store",
+      "Content-Type": "application/json",
+      "Access-Control-Allow-Origin": "*",
+      "Cache-Control": "no-store",
     },
-  })
+  });
 }
 
-function normalizeUrl(url: string) {
-  return url.trim().replace(/\s+/g, "")
-}
-
-function detectImageType(bytes: Uint8Array): string | null {
-  if (
-    bytes.length >= 8 &&
-    bytes[0] === 0x89 && bytes[1] === 0x50 && bytes[2] === 0x4e && bytes[3] === 0x47 &&
-    bytes[4] === 0x0d && bytes[5] === 0x0a && bytes[6] === 0x1a && bytes[7] === 0x0a
-  ) {
-    return "image/png"
-  }
-
-  if (bytes.length >= 3 && bytes[0] === 0xff && bytes[1] === 0xd8 && bytes[2] === 0xff) {
-    return "image/jpeg"
-  }
-
-  if (
-    bytes.length >= 6 &&
-    bytes[0] === 0x47 && bytes[1] === 0x49 && bytes[2] === 0x46 &&
-    bytes[3] === 0x38 && (bytes[4] === 0x37 || bytes[4] === 0x39) && bytes[5] === 0x61
-  ) {
-    return "image/gif"
-  }
-
-  if (
-    bytes.length >= 12 &&
-    bytes[0] === 0x52 && bytes[1] === 0x49 && bytes[2] === 0x46 && bytes[3] === 0x46 &&
-    bytes[8] === 0x57 && bytes[9] === 0x45 && bytes[10] === 0x42 && bytes[11] === 0x50
-  ) {
-    return "image/webp"
-  }
-
-  return null
+function parseResize(value: string | null): number | null {
+  if (!value) return null;
+  const n = Number(value);
+  if (!Number.isFinite(n) || n <= 0) return null;
+  return Math.max(1, Math.min(1024, Math.floor(n)));
 }
 
 export default {
   async fetch(request: Request): Promise<Response> {
-    const reqUrl = new URL(request.url)
-    let imageUrl = reqUrl.searchParams.get("url")
+    const url = new URL(request.url);
+    const imageUrl = url.searchParams.get("url");
+    const resizeTo = parseResize(url.searchParams.get("resize"));
 
     if (!imageUrl) {
-      return json({ ok: false, error: "Missing url" }, 400)
-    }
-
-    imageUrl = normalizeUrl(imageUrl)
-
-    if (!/^https?:\/\//i.test(imageUrl)) {
-      return json({ ok: false, error: "URL must start with http or https" }, 400)
+      return json({ error: "Missing ?url= parameter" }, 400);
     }
 
     try {
-      const upstream = await fetch(imageUrl, {
-        method: "GET",
-        redirect: "follow",
+      const imageRes = await fetch(imageUrl, {
         headers: {
-          "user-agent": "Mozilla/5.0",
-          "accept": "image/avif,image/webp,image/apng,image/*,*/*;q=0.8",
-          "accept-language": "en-US,en;q=0.9",
-          "cache-control": "no-cache",
-          "pragma": "no-cache",
+          "Accept": "image/*",
+          "User-Agent": "Mozilla/5.0 (compatible; CFWorker)",
         },
-      })
+      });
 
-      if (!upstream.ok) {
-        const text = await upstream.text().catch(() => "")
+      if (!imageRes.ok) {
+        const text = await imageRes.text().catch(() => "");
         return json(
           {
-            ok: false,
-            error: `Fetch failed: ${upstream.status}`,
-            finalUrl: upstream.url || imageUrl,
+            error: `Image fetch failed with status ${imageRes.status}`,
             body: text.slice(0, 300),
+            finalUrl: imageRes.url || imageUrl,
           },
           502
-        )
+        );
       }
 
-      const bytes = new Uint8Array(await upstream.arrayBuffer())
-      const headerType = upstream.headers.get("content-type") || ""
-      const detectedType = detectImageType(bytes)
-      const finalType = headerType.startsWith("image/") ? headerType : detectedType
+      const inputBytes = new Uint8Array(await imageRes.arrayBuffer());
+      let photonImage = PhotonImage.new_from_byteslice(inputBytes);
 
-      if (!finalType) {
-        let preview = ""
-        try {
-          preview = new TextDecoder().decode(bytes.slice(0, 300))
-        } catch {
-          preview = "[binary response]"
+      if (resizeTo) {
+        const width = photonImage.get_width();
+        const height = photonImage.get_height();
+
+        let newWidth = width;
+        let newHeight = height;
+
+        if (width > height) {
+          newWidth = resizeTo;
+          newHeight = Math.max(1, Math.round((height / width) * resizeTo));
+        } else {
+          newHeight = resizeTo;
+          newWidth = Math.max(1, Math.round((width / height) * resizeTo));
         }
 
-        return json(
-          {
-            ok: false,
-            error: "Response was not an image",
-            finalUrl: upstream.url || imageUrl,
-            contentType: headerType,
-            body: preview,
-          },
-          400
-        )
+        const resized = resize(photonImage, newWidth, newHeight, SamplingFilter.Nearest);
+        photonImage.free();
+        photonImage = resized;
       }
 
-      return new Response(bytes, {
-        status: 200,
-        headers: {
-          "content-type": finalType,
-          "access-control-allow-origin": "*",
-          "cache-control": "public, max-age=3600",
-        },
-      })
+      const width = photonImage.get_width();
+      const height = photonImage.get_height();
+      const rawPixels = photonImage.get_raw_pixels();
+
+      const pixels: number[][][] = [];
+
+      for (let y = 0; y < height; y++) {
+        const row: number[][] = [];
+        for (let x = 0; x < width; x++) {
+          const idx = (y * width + x) * 4;
+
+          const r = rawPixels[idx];
+          const g = rawPixels[idx + 1];
+          const b = rawPixels[idx + 2];
+          const a = rawPixels[idx + 3] / 255;
+
+          const rBlended = Math.round(r * a + (1 - a) * 255);
+          const gBlended = Math.round(g * a + (1 - a) * 255);
+          const bBlended = Math.round(b * a + (1 - a) * 255);
+
+          row.push([rBlended, gBlended, bBlended]);
+        }
+        pixels.push(row);
+      }
+
+      photonImage.free();
+
+      return json({
+        width,
+        height,
+        pixels,
+      });
     } catch (err) {
       return json(
-        {
-          ok: false,
-          error: err instanceof Error ? err.message : "Unknown worker error",
-          finalUrl: imageUrl,
-        },
+        { error: err instanceof Error ? err.message : "Unknown error" },
         500
-      )
+      );
     }
   },
-}
+};

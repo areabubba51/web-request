@@ -9,6 +9,7 @@
     "cf-typegen": "wrangler types"
   },
   "dependencies": {
+    "@cf-wasm/photon": "^0.3.4",
     "chanfana": "^3.3.0",
     "hono": "^4.12.12",
     "imagescript": "^1.3.1",
