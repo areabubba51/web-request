@@ -1,11 +1,12 @@
 export interface Env {}
 
 function json(data: unknown, status = 200) {
-  return new Response(JSON.stringify(data), {
-    status,
+  return new Response(await upstream.arrayBuffer(), {
+    status: 200,
     headers: {
-      "content-type": "application/json",
+      "content-type": "image/png",
       "access-control-allow-origin": "*",
+      "cache-control": "public, max-age=3600",
     },
   })
 }
