@@ -49,7 +49,7 @@ export default {
         }, 502)
       }
 
-      const contentType = upstream.headers.get("content-type") or ""
+      const contentType = upstream.headers.get("content-type") || ""
       if (!contentType.startsWith("image/")) {
         const bodyText = await upstream.text().catch(() => "")
         return json({
