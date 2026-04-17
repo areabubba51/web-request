@@ -10,20 +10,28 @@ function json(data: unknown, status = 200) {
   })
 }
 
-function isDirectImageUrl(url: string) {
+function normalizeDiscordUrl(url: string) {
+  url = url.replace(/^https:\/\/media\.discordapp\.net\//i, "https://cdn.discordapp.com/")
+  url = url.replace(/\?.*$/, "")
+  return url
+}
+
+function isAllowedImageUrl(url: string) {
   return /^https?:\/\/.+\.(png|jpe?g|webp|gif)(\?.*)?$/i.test(url)
 }
 
 export default {
   async fetch(request: Request): Promise<Response> {
     const reqUrl = new URL(request.url)
-    const imageUrl = reqUrl.searchParams.get("url")
+    let imageUrl = reqUrl.searchParams.get("url")
 
     if (!imageUrl) {
       return json({ ok: false, error: "Missing url" }, 400)
     }
 
-    if (!isDirectImageUrl(imageUrl)) {
+    imageUrl = normalizeDiscordUrl(imageUrl)
+
+    if (!isAllowedImageUrl(imageUrl)) {
       return json({ ok: false, error: "Only direct image URLs are supported" }, 400)
     }
 
@@ -44,6 +52,7 @@ export default {
             ok: false,
             error: `Fetch failed: ${upstream.status}`,
             body: text.slice(0, 300),
+            finalUrl: imageUrl,
           },
           502
         )
@@ -59,6 +68,7 @@ export default {
             error: "Not an image response",
             contentType,
             body: text.slice(0, 300),
+            finalUrl: imageUrl,
           },
           400
         )
@@ -77,6 +87,7 @@ export default {
         {
           ok: false,
           error: err instanceof Error ? err.message : "Unknown worker error",
+          finalUrl: imageUrl,
         },
         500
       )
