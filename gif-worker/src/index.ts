@@ -11,13 +11,16 @@ function json(data: unknown, status = 200) {
 }
 
 function normalizeDiscordUrl(url: string) {
-  url = url.replace(/^https:\/\/media\.discordapp\.net\//i, "https://cdn.discordapp.com/")
+  if (/^https:\/\/media\.discordapp\.net\//i.test(url)) {
+    url = url.replace(/^https:\/\/media\.discordapp\.net\//i, "https://cdn.discordapp.com/")
+  }
+
   url = url.replace(/\?.*$/, "")
   return url
 }
 
 function isAllowedImageUrl(url: string) {
-  return /^https?:\/\/.+\.(png|jpe?g|webp|gif)(\?.*)?$/i.test(url)
+  return /^https?:\/\/.+\.(png|jpe?g|webp|gif)$/i.test(url)
 }
 
 export default {
@@ -32,7 +35,14 @@ export default {
     imageUrl = normalizeDiscordUrl(imageUrl)
 
     if (!isAllowedImageUrl(imageUrl)) {
-      return json({ ok: false, error: "Only direct image URLs are supported" }, 400)
+      return json(
+        {
+          ok: false,
+          error: "Only direct image URLs are supported",
+          finalUrl: imageUrl,
+        },
+        400
+      )
     }
 
     try {
@@ -51,8 +61,8 @@ export default {
           {
             ok: false,
             error: `Fetch failed: ${upstream.status}`,
-            body: text.slice(0, 300),
             finalUrl: imageUrl,
+            body: text.slice(0, 300),
           },
           502
         )
@@ -66,9 +76,9 @@ export default {
           {
             ok: false,
             error: "Not an image response",
+            finalUrl: imageUrl,
             contentType,
             body: text.slice(0, 300),
-            finalUrl: imageUrl,
           },
           400
         )
